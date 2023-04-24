@@ -14,7 +14,7 @@
 object ProjectSetting {
 
     // Project settings
-    const val NAME_APP = "Rhythm Tap"
+    const val NAME_APP = "RevoluTap"
 
     // Version App
     const val VERSION_MAJOR = 1
