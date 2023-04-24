@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<!-- App -->
-	<string name="App_name">"RevoluTap"</string>
-	
+
 	<!-- URLs -->
 	<string name="Url_code">"https://github.com/budsterblue/revolutap"</string>
 	<string name="Url_website">"http://beatsportable.com"</string>
