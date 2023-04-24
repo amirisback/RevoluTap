@@ -1,42 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-	package="com.github.budsterblue.revolutap"
-	android:versionCode="22"
-	android:versionName="@string/App_version"
-	android:installLocation="auto">
-	<uses-permission android:name="android.permission.VIBRATE"/> <!-- Game -->
-	<application
-		android:enabled="true"
-		android:allowBackup="true"
-		android:hardwareAccelerated="true"
-		android:icon="@mipmap/ic_launcher"
-		android:label="@string/App_name"
-		android:description="@string/App_description"
-		android:theme="@style/Theme.AppCompat.DayNight" >
-		<activity
-			android:name="com.github.budsterblue.revolutap.MenuHome" >
-			<intent-filter>
-				<action	android:name="android.intent.action.MAIN" />
-				<category android:name="android.intent.category.LAUNCHER" />
-			</intent-filter>
-		</activity>
-		<activity
-			android:name="com.github.budsterblue.revolutap.MenuCredits">
-			<intent-filter>
-				<category android:name="android.intent.category.DEFAULT" />
-				<action android:name=".MenuCredits" />
-			</intent-filter>
-		</activity>
-		<activity
-			android:name="com.github.budsterblue.revolutap.MenuFileChooser"
-			android:configChanges="orientation|keyboardHidden|screenSize" />
-		<activity
-			android:name="com.github.budsterblue.revolutap.MenuSettings" />
-		<activity
-			android:name="com.github.budsterblue.revolutap.GUIGame"
-			android:theme="@style/Theme.NoBackground"
-			android:configChanges="orientation|keyboardHidden|screenSize"
-			android:exported="true"
-			/>
-	</application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.VIBRATE" /> <!-- Game -->
+
+    <application
+        android:allowBackup="true"
+        android:description="@string/App_description"
+        android:enabled="true"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/App_name"
+        android:theme="@style/Theme.AppCompat.DayNight">
+        <activity
+            android:name="com.github.budsterblue.revolutap.MenuHome"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.github.budsterblue.revolutap.MenuCredits"
+            android:exported="true">
+            <intent-filter>
+                <category android:name="android.intent.category.DEFAULT" />
+                <action android:name=".MenuCredits" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.github.budsterblue.revolutap.MenuFileChooser"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true" />
+        <activity
+            android:name="com.github.budsterblue.revolutap.MenuSettings"
+            android:exported="true" />
+        <activity
+            android:name="com.github.budsterblue.revolutap.GUIGame"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true"
+            android:theme="@style/Theme.NoBackground" />
+    </application>
 </manifest>
