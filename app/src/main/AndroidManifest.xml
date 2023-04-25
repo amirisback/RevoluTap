@@ -13,28 +13,23 @@
         android:theme="@style/Theme.AppCompat.DayNight">
 
         <activity
-            android:name=".ui.MenuHome"
+            android:name=".ui.main.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
-            android:name=".ui.MenuCredits"
-            android:exported="true">
-            <intent-filter>
-                <category android:name="android.intent.category.DEFAULT" />
-                <action android:name=".MenuCredits" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.MenuFileChooser"
+            android:name=".ui.filechooser.FileChooserActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true" />
+
         <activity
-            android:name=".ui.MenuSettings"
+            android:name=".ui.settings.SettingsActivity"
             android:exported="true" />
+
         <activity
             android:name=".widget.GUIGame"
             android:configChanges="orientation|keyboardHidden|screenSize"

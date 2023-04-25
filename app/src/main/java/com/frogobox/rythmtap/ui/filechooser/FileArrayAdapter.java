@@ -1,4 +1,4 @@
-package com.frogobox.rythmtap.ui;
+package com.frogobox.rythmtap.ui.filechooser;
 
 import androidx.annotation.NonNull;
 import android.content.Context;
@@ -24,16 +24,16 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
-public class MenuFileArrayAdapter extends RecyclerView.Adapter<MenuFileArrayAdapter.ViewHolder> {
+public class FileArrayAdapter extends RecyclerView.Adapter<FileArrayAdapter.ViewHolder> {
 
-    private ArrayList<MenuFileItem> mItems;
+    private ArrayList<FileItem> mItems;
     private final LayoutInflater mInflater;
     private ItemClickListener mClickListener;
     private ItemLongClickListener mLongClickListener;
     private final boolean showSongBanners = Tools.getBooleanSetting(R.string.showSongBanners, R.string.showSongBannersDefault);
 
     // data is passed into the constructor
-    MenuFileArrayAdapter(Context context, ArrayList<MenuFileItem> items) {
+    FileArrayAdapter(Context context, ArrayList<FileItem> items) {
         this.mInflater = LayoutInflater.from(context);
         this.mItems = items;
     }
@@ -42,14 +42,14 @@ public class MenuFileArrayAdapter extends RecyclerView.Adapter<MenuFileArrayAdap
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = mInflater.inflate(R.layout.choose_row, parent, false);
+        View view = mInflater.inflate(R.layout.item_file_choose, parent, false);
         return new ViewHolder(view);
     }
 
     // binds the data to the TextView and ImageView in each row
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        final MenuFileItem i = mItems.get(position);
+        final FileItem i = mItems.get(position);
         if (i != null) {
             ImageView iv = holder.itemView.findViewById(R.id.iconview);
             iv.setImageResource(R.drawable.revolutap_banner_bg);
@@ -168,7 +168,7 @@ public class MenuFileArrayAdapter extends RecyclerView.Adapter<MenuFileArrayAdap
         return mItems.size();
     }
 
-    public void updateData(ArrayList<MenuFileItem> items) {
+    public void updateData(ArrayList<FileItem> items) {
         this.mItems = items;
         notifyDataSetChanged();
     }
@@ -201,7 +201,7 @@ public class MenuFileArrayAdapter extends RecyclerView.Adapter<MenuFileArrayAdap
     }
 
     // convenience method for getting data at click position
-    public MenuFileItem getItem (int i) {
+    public FileItem getItem (int i) {
         return mItems.get(i);
     }
 

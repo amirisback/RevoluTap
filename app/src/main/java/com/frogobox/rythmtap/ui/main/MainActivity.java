@@ -1,4 +1,4 @@
-package com.frogobox.rythmtap.ui;
+package com.frogobox.rythmtap.ui.main;
 
 import androidx.annotation.NonNull;
 import android.annotation.SuppressLint;
@@ -20,6 +20,9 @@ import android.view.Window;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.frogobox.rythmtap.ui.game.GameActivity;
+import com.frogobox.rythmtap.ui.settings.SettingsActivity;
+import com.frogobox.rythmtap.ui.filechooser.FileChooserActivity;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.util.ToolsSaveFile;
 import com.frogobox.rythmtap.R;
@@ -27,7 +30,7 @@ import com.frogobox.rythmtap.R;
 import java.util.Locale;
 
 
-public class MenuHome extends Activity {
+public class MainActivity extends Activity {
 	
 	private static final int SELECT_MUSIC = 123;
 	private static final int SELECT_SONG_PACK = 122;
@@ -46,7 +49,7 @@ public class MenuHome extends Activity {
 		if (requestCode == SELECT_MUSIC && resultCode == RESULT_OK) {
 			if (Tools.getBooleanSetting(R.string.autoStart, R.string.autoStartDefault)) {
 				Tools.setContext(this);
-				new MenuStartGame(this, title).startGameCheck();
+				new GameActivity(this, title).startGameCheck();
 			}
 		}
 		if (requestCode == SELECT_SONG_PACK && resultCode == Activity.RESULT_OK) {
@@ -102,10 +105,12 @@ public class MenuHome extends Activity {
 	// Main screen
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		Tools.setContext(this);
-		
 		// Startup checks
-		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+		setContentView(R.layout.activity_main);
+
+		Tools.setContext(this);
 
 		if (Tools.getBooleanSetting(R.string.resetSettings, R.string.resetSettingsDefault)) {
 			Tools.resetSettings();
@@ -176,7 +181,6 @@ public class MenuHome extends Activity {
 	}
 	
 	private void setupLayout() {
-		setContentView(R.layout.main);
 		setVolumeControlStream(AudioManager.STREAM_MUSIC); // To control media volume at all times
 
 		updateLayout();
@@ -230,7 +234,7 @@ public class MenuHome extends Activity {
 		TextView start_b = findViewById(R.id.start);
 		start_b.setOnClickListener(v -> {
 			vibrate();
-			new MenuStartGame(MenuHome.this, title).startGameCheck();
+			new GameActivity(MainActivity.this, title).startGameCheck();
 		});
 		
 		// Select Song button
@@ -238,7 +242,7 @@ public class MenuHome extends Activity {
 		select_song_b.setOnClickListener(v -> {
 			vibrate();
 			Intent i = new Intent();
-			i.setClass(MenuHome.this, MenuFileChooser.class);
+			i.setClass(MainActivity.this, FileChooserActivity.class);
 			startActivityForResult(i, SELECT_MUSIC);
 		});
 
@@ -247,7 +251,7 @@ public class MenuHome extends Activity {
 		settings_b.setOnClickListener(v -> {
 			vibrate();
 			Intent i = new Intent();
-			i.setClass(MenuHome.this, MenuSettings.class);
+			i.setClass(MainActivity.this, SettingsActivity.class);
 			startActivity(i);
 		});
 
@@ -393,29 +397,27 @@ public class MenuHome extends Activity {
 			difficulty.setTypeface(tf);
 		}
 		difficulty.setTextSize(textSize);
-		switch (Integer.parseInt(
-				Tools.getSetting(R.string.difficultyLevel, R.string.difficultyLevelDefault)
-				)) {
-			case 0:
+		switch (Integer.parseInt(Tools.getSetting(R.string.difficultyLevel, R.string.difficultyLevelDefault))) {
+			case 0 -> {
 				difficulty.setText(" " + Tools.getString(R.string.Difficulty_beginner).toLowerCase());
 				difficulty.setTextColor(Color.rgb(255, 132, 0)); // orange
-				break;
-			case 1:
+			}
+			case 1 -> {
 				difficulty.setText(" " + Tools.getString(R.string.Difficulty_easy).toLowerCase());
 				difficulty.setTextColor(Color.rgb(0, 185, 255)); // light blue
-				break;
-			case 2:
+			}
+			case 2 -> {
 				difficulty.setText(" " + Tools.getString(R.string.Difficulty_medium).toLowerCase());
 				difficulty.setTextColor(Color.rgb(255, 0, 0)); // red
-				break;
-			case 3:
+			}
+			case 3 -> {
 				difficulty.setText(" " + Tools.getString(R.string.Difficulty_hard).toLowerCase());
 				difficulty.setTextColor(Color.rgb(32, 185, 32)); // green
-				break;
-			case 4:
+			}
+			case 4 -> {
 				difficulty.setText(" " + Tools.getString(R.string.Difficulty_challenge).toLowerCase());
 				difficulty.setTextColor(Color.rgb(14, 122, 230)); // dark blue
-				break;
+			}
 		}
 	}
 
@@ -430,13 +432,9 @@ public class MenuHome extends Activity {
 	private void updateGameMode() {
 		Tools.updateGameMode();
 		ImageView gameMode = findViewById(R.id.gameMode);
-		switch(Tools.gameMode) {
-			case Tools.REVERSE:
-				gameMode.setImageResource(R.drawable.mode_step_down);
-				break;
-			case Tools.STANDARD:
-				gameMode.setImageResource(R.drawable.mode_step_up);
-				break;
+		switch (Tools.gameMode) {
+			case Tools.REVERSE -> gameMode.setImageResource(R.drawable.mode_step_down);
+			case Tools.STANDARD -> gameMode.setImageResource(R.drawable.mode_step_up);
 		}
 	}
 	
@@ -451,7 +449,7 @@ public class MenuHome extends Activity {
 			case KeyEvent.KEYCODE_MENU:
 				//changeDifficulty();
 				Intent i = new Intent();
-				i.setClass(MenuHome.this, MenuSettings.class);
+				i.setClass(MainActivity.this, SettingsActivity.class);
 				startActivity(i);
 				return true;
 			case KeyEvent.KEYCODE_SEARCH:

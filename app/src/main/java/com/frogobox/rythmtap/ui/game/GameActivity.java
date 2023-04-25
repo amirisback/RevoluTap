@@ -1,4 +1,4 @@
-package com.frogobox.rythmtap.ui;
+package com.frogobox.rythmtap.ui.game;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -19,7 +19,7 @@ import com.frogobox.rythmtap.R;
 
 import java.io.File;
 
-public class MenuStartGame implements Runnable {
+public class GameActivity implements Runnable {
 	private final Activity a;
 	private final String title;
 	
@@ -30,7 +30,7 @@ public class MenuStartGame implements Runnable {
 
 	public static DataParser dp;
 	
-	public MenuStartGame(Activity a, String title) {
+	public GameActivity(Activity a, String title) {
 		this.a = a;
 		this.title = title;
 		

@@ -1,4 +1,4 @@
-package com.frogobox.rythmtap.ui;
+package com.frogobox.rythmtap.ui.settings;
 
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -8,7 +8,7 @@ import androidx.preference.PreferenceFragmentCompat;
 
 import com.frogobox.rythmtap.R;
 
-public class MenuSettings extends AppCompatActivity implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+public class SettingsActivity extends AppCompatActivity implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
 	@Override
 	public boolean onPreferenceStartFragment(PreferenceFragmentCompat caller, Preference pref) {
@@ -57,8 +57,8 @@ public class MenuSettings extends AppCompatActivity implements PreferenceFragmen
 	}
 
 	public void onCreate(Bundle savedInstanceState) {
-		MenuSettings.super.onCreate(savedInstanceState);
-		setContentView(R.layout.settings);
+		SettingsActivity.super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_settings);
 		getSupportFragmentManager().beginTransaction().replace(R.id.settings_layout, new MenuSettingsFragment()).commit();
 	}
 

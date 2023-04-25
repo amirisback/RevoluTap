@@ -40,7 +40,7 @@ import androidx.annotation.NonNull;
 import com.frogobox.rythmtap.R;
 import com.frogobox.rythmtap.model.DataParser;
 import com.frogobox.rythmtap.service.MusicService;
-import com.frogobox.rythmtap.ui.MenuStartGame;
+import com.frogobox.rythmtap.ui.game.GameActivity;
 import com.frogobox.rythmtap.util.Randomizer;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.util.ToolsTracker;
@@ -237,7 +237,7 @@ public class GUIGame extends Activity {
 		listeners = new GUIListenersMulti(h);
 		mView.getView().setOnTouchListener(listeners.getOnTouchListener());
 		
-		this.dp = MenuStartGame.dp;
+		this.dp = GameActivity.dp;
 		h.loadSongData(dp);
 		String musicFilePath = dp.df.getMusic().getPath();
 		mp = new MusicService(musicFilePath);
