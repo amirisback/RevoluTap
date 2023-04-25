@@ -8,11 +8,13 @@ import android.text.Html;
 import android.view.MenuItem;
 import android.view.View;
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
+import com.frogobox.rythmtap.common.core.BaseActivity;
+import com.frogobox.rythmtap.databinding.ActivityFileChooseBinding;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.util.ToolsTracker;
 import com.frogobox.rythmtap.util.ToolsUnzipper;
@@ -26,27 +28,30 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Scanner;
 
-public class FileChooserActivity extends AppCompatActivity implements FileArrayAdapter.ItemClickListener, FileArrayAdapter.ItemLongClickListener {
+public class FileChooserActivity extends BaseActivity<ActivityFileChooseBinding> implements FileArrayAdapter.ItemClickListener, FileArrayAdapter.ItemLongClickListener {
     private FileArrayAdapter adapter;
     private File cwd;
     private String selectedFilePath;
     private boolean useShortDirNames;
-    private RecyclerView recyclerView;
+
     private LinearLayoutManager layoutManager;
     private DividerItemDecoration dividerItemDecoration;
 
+    @NonNull
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_file_choose);
+    public ActivityFileChooseBinding setupViewBinding() {
+        return ActivityFileChooseBinding.inflate(getLayoutInflater());
+    }
+
+    @Override
+    public void onCreateExt(@Nullable Bundle savedInstanceState) {
+        super.onCreateExt(savedInstanceState);
         Tools.setContext(this);
         // set up the RecyclerView
-        recyclerView = findViewById(R.id.choose_recycler);
         layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
-        registerForContextMenu(recyclerView);
-        dividerItemDecoration = new DividerItemDecoration(recyclerView.getContext(),
-                layoutManager.getOrientation());
+        getBinding().chooseRecycler.setLayoutManager(layoutManager);
+        registerForContextMenu(getBinding().chooseRecycler);
+        dividerItemDecoration = new DividerItemDecoration(getBinding().chooseRecycler.getContext(), layoutManager.getOrientation());
         //Objects.requireNonNull(this.getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
 
         adapter = null;
@@ -151,8 +156,8 @@ public class FileChooserActivity extends AppCompatActivity implements FileArrayA
             adapter = new FileArrayAdapter(this, dl);
             adapter.setClickListener(this);
             adapter.setLongClickListener(this);
-            recyclerView.addItemDecoration(dividerItemDecoration);
-            recyclerView.setAdapter(adapter);
+            getBinding().chooseRecycler.addItemDecoration(dividerItemDecoration);
+            getBinding().chooseRecycler.setAdapter(adapter);
         } else {
             adapter.updateData(dl);
         }
