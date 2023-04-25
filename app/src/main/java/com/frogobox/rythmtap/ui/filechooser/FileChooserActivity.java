@@ -1,4 +1,4 @@
-package com.frogobox.rythmtap.ui;
+package com.frogobox.rythmtap.ui.filechooser;
 
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -8,11 +8,13 @@ import android.text.Html;
 import android.view.MenuItem;
 import android.view.View;
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
+import com.frogobox.rythmtap.common.core.BaseActivity;
+import com.frogobox.rythmtap.databinding.ActivityFileChooseBinding;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.util.ToolsTracker;
 import com.frogobox.rythmtap.util.ToolsUnzipper;
@@ -26,27 +28,30 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Scanner;
 
-public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayAdapter.ItemClickListener, MenuFileArrayAdapter.ItemLongClickListener {
-    private MenuFileArrayAdapter adapter;
+public class FileChooserActivity extends BaseActivity<ActivityFileChooseBinding> implements FileArrayAdapter.ItemClickListener, FileArrayAdapter.ItemLongClickListener {
+    private FileArrayAdapter adapter;
     private File cwd;
     private String selectedFilePath;
     private boolean useShortDirNames;
-    private RecyclerView recyclerView;
+
     private LinearLayoutManager layoutManager;
     private DividerItemDecoration dividerItemDecoration;
 
+    @NonNull
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.choose);
+    public ActivityFileChooseBinding setupViewBinding() {
+        return ActivityFileChooseBinding.inflate(getLayoutInflater());
+    }
+
+    @Override
+    public void onCreateExt(@Nullable Bundle savedInstanceState) {
+        super.onCreateExt(savedInstanceState);
         Tools.setContext(this);
         // set up the RecyclerView
-        recyclerView = findViewById(R.id.choose_recycler);
         layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
-        registerForContextMenu(recyclerView);
-        dividerItemDecoration = new DividerItemDecoration(recyclerView.getContext(),
-                layoutManager.getOrientation());
+        getBinding().chooseRecycler.setLayoutManager(layoutManager);
+        registerForContextMenu(getBinding().chooseRecycler);
+        dividerItemDecoration = new DividerItemDecoration(getBinding().chooseRecycler.getContext(), layoutManager.getOrientation());
         //Objects.requireNonNull(this.getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
 
         adapter = null;
@@ -125,8 +130,8 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
         }
         // Get lists
         File[] l = dir.listFiles();
-        ArrayList<MenuFileItem> dl = new ArrayList<>();
-        ArrayList<MenuFileItem> fl = new ArrayList<>();
+        ArrayList<FileItem> dl = new ArrayList<>();
+        ArrayList<FileItem> fl = new ArrayList<>();
 
         // Populate list
         if (l != null){
@@ -135,9 +140,9 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
                 if (!s.startsWith(".")) {
                     if (f.isDirectory()) {
                         if (useShortDirNames) s = shortDirName(s);
-                        dl.add(new MenuFileItem(s, f.getAbsolutePath(), true, f));
+                        dl.add(new FileItem(s, f.getAbsolutePath(), true, f));
                     } else if (Tools.isStepfile(s) || Tools.isLink(s) || Tools.isStepfilePack(s) || Tools.isText(s)) {
-                        fl.add(new MenuFileItem(s, f.getAbsolutePath(), false, f));
+                        fl.add(new FileItem(s, f.getAbsolutePath(), false, f));
                     }
                 }
             }
@@ -148,11 +153,11 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
 
         // Display
         if (adapter == null) {
-            adapter = new MenuFileArrayAdapter(this, dl);
+            adapter = new FileArrayAdapter(this, dl);
             adapter.setClickListener(this);
             adapter.setLongClickListener(this);
-            recyclerView.addItemDecoration(dividerItemDecoration);
-            recyclerView.setAdapter(adapter);
+            getBinding().chooseRecycler.addItemDecoration(dividerItemDecoration);
+            getBinding().chooseRecycler.setAdapter(adapter);
         } else {
             adapter.updateData(dl);
         }
@@ -160,7 +165,7 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
 
     @Override
     public void onItemClick(View view, int position) {
-        MenuFileItem i = adapter.getItem(position);
+        FileItem i = adapter.getItem(position);
         if (i != null) {
             onFileClick(i);
         }
@@ -168,7 +173,7 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
 
     @Override
     public void onItemLongClick(View view, int position) {
-        MenuFileItem i = adapter.getItem(position);
+        FileItem i = adapter.getItem(position);
         assert i != null;
         selectedFilePath = i.getPath();
 
@@ -204,7 +209,7 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            onFileClick(new MenuFileItem("", cwd.getParent(), true, null));
+            onFileClick(new FileItem("", cwd.getParent(), true, null));
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -254,7 +259,7 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
         finish();
     }
 
-    private void displayTextFile(MenuFileItem i) {
+    private void displayTextFile(FileItem i) {
 		/*using html, because otherwise the text size is too big. I'm not sure why;
 		the New User Notes box is plaintext and its text size is fine. */
         //TODO make this into an activity?
@@ -286,7 +291,7 @@ public class MenuFileChooser extends AppCompatActivity implements MenuFileArrayA
         }
     }
 
-    private void onFileClick(MenuFileItem i) {
+    private void onFileClick(FileItem i) {
         selectedFilePath = i.getPath();
         // Directory
         if (i.isDirectory()) {

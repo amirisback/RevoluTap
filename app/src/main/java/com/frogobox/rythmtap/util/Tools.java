@@ -278,7 +278,7 @@ public class Tools {
 		alertBuilder.setIcon(icon);
 		
 		if (ignoreSetting != -1) {
-			View notes = LayoutInflater.from(c).inflate(R.layout.notes, null);
+			View notes = LayoutInflater.from(c).inflate(R.layout.item_notes, null);
 			TextView notes_text = notes.findViewById(R.id.notes_text);
 			notes_text.setText(msg);
 			notes_text.setTextColor(Color.WHITE);
