@@ -8,6 +8,7 @@ import android.graphics.Rect;
 import android.graphics.Region;
 
 import com.frogobox.rythmtap.model.DataNote;
+import com.frogobox.rythmtap.ui.game.GameActivity;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.R;
 
@@ -203,7 +204,7 @@ public class GUIHandlerTap extends GUIHandler {
 			scoreboard_frames++;
 		}
 		
-		int currentTime = GUIGame.currentTime;
+		int currentTime = GameActivity.currentTime;
 		int onScreenTime, offScreenTime;
 		if (Tools.gameMode == Tools.STANDARD) { // scroll up
 			onScreenTime = yToTime(Tools.screen_h);
@@ -468,7 +469,7 @@ public class GUIHandlerTap extends GUIHandler {
 		GUIFallingObject o = fallingobjects.peekColumn(pitch);
 		if (o == null) return false;
 		
-		int currentTime = GUIGame.currentTime;
+		int currentTime = GameActivity.currentTime;
 		int timediff = o.start_time - currentTime;
 		
 		GUIScore.AccuracyTypes acc = o.onFirstFrame(currentTime, score);
@@ -520,7 +521,7 @@ public class GUIHandlerTap extends GUIHandler {
 		//button_clicked[pitch] = false;
 		arrows[pitch].clicked = false;
 		if (object_held[pitch] != null) {
-			GUIScore.AccuracyTypes acc = object_held[pitch].onLastFrame(GUIGame.currentTime, score, false);
+			GUIScore.AccuracyTypes acc = object_held[pitch].onLastFrame(GameActivity.currentTime, score, false);
 			if (acc != GUIScore.AccuracyTypes.X_IGNORE_ABOVE) {
 				setMessage(acc.name, acc.r, acc.g, acc.b);
 			}

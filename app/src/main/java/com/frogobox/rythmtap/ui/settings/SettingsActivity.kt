@@ -4,10 +4,10 @@ import android.os.Bundle
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.frogobox.rythmtap.R
-import com.frogobox.rythmtap.common.core.BaseActivity
+import com.frogobox.rythmtap.common.core.BaseBindActivity
 import com.frogobox.rythmtap.databinding.ActivitySettingsBinding
 
-class SettingsActivity : BaseActivity<ActivitySettingsBinding>(),
+class SettingsActivity : BaseBindActivity<ActivitySettingsBinding>(),
     PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     override fun setupViewBinding(): ActivitySettingsBinding {

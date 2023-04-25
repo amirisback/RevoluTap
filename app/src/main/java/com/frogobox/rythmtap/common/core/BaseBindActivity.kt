@@ -1,6 +1,7 @@
 package com.frogobox.rythmtap.common.core
 
-import com.frogobox.admob.ui.FrogoAdmobActivity
+import androidx.viewbinding.ViewBinding
+import com.frogobox.admob.ui.FrogoAdmobBindActivity
 
 /**
  * Created by Faisal Amir on 24/10/22
@@ -13,5 +14,7 @@ import com.frogobox.admob.ui.FrogoAdmobActivity
  */
 
 
-abstract class BaseActivity : FrogoAdmobActivity() {
+abstract class BaseBindActivity<VB : ViewBinding> : FrogoAdmobBindActivity<VB>() {
+
+
 }

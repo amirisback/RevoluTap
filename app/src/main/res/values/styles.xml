@@ -1,0 +1,35 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionBarOverlay">true</item>
+
+        <item name="android:windowAnimationStyle">@style/FrogoWindmillWindowAnimations</item>
+    </style>
+
+    <style name="AppTheme.Game" parent="AppTheme.HideStatusBarUI">
+        <item name="android:windowAnimationStyle">@style/FrogoWindmillWindowAnimations</item>
+    </style>
+
+    <style name="AppTheme.Splash" parent="AppTheme.HideStatusBarUI">
+        <item name="android:windowAnimationStyle">@style/AppFadeAway</item>
+    </style>
+
+    <style name="AppFadeAway">
+        <item name="android:activityOpenEnterAnimation">@anim/fade_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_exit</item>
+        <item name="android:activityCloseEnterAnimation">@android:anim/bounce_interpolator</item>
+        <item name="android:activityCloseExitAnimation">@android:anim/bounce_interpolator</item>
+    </style>
+
+</resources>

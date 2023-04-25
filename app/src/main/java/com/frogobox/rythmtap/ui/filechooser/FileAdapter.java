@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
-public class FileArrayAdapter extends RecyclerView.Adapter<FileArrayAdapter.ViewHolder> {
+public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
     private ArrayList<FileItem> mItems;
     private final LayoutInflater mInflater;
@@ -33,7 +33,7 @@ public class FileArrayAdapter extends RecyclerView.Adapter<FileArrayAdapter.View
     private final boolean showSongBanners = Tools.getBooleanSetting(R.string.showSongBanners, R.string.showSongBannersDefault);
 
     // data is passed into the constructor
-    FileArrayAdapter(Context context, ArrayList<FileItem> items) {
+    FileAdapter(Context context, ArrayList<FileItem> items) {
         this.mInflater = LayoutInflater.from(context);
         this.mItems = items;
     }
