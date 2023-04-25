@@ -10,7 +10,7 @@
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.AppCompat.DayNight">
+        android:theme="@style/AppTheme.HideStatusBarUI">
 
         <activity
             android:name=".ui.main.MainActivity"
@@ -26,17 +26,17 @@
         <activity
             android:name=".ui.filechooser.FileChooserActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="true" />
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.DayNight" />
 
         <activity
             android:name=".ui.settings.SettingsActivity"
             android:exported="true" />
 
         <activity
-            android:name=".widget.GUIGame"
+            android:name=".ui.game.GameActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="true"
-            android:theme="@style/Theme.NoBackground" />
+            android:exported="true" />
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

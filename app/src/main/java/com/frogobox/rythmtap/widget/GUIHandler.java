@@ -3,6 +3,7 @@ package com.frogobox.rythmtap.widget;
 import android.graphics.Canvas;
 
 import com.frogobox.rythmtap.model.DataParser;
+import com.frogobox.rythmtap.ui.game.GameActivity;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.R;
 
@@ -17,7 +18,7 @@ public class GUIHandler { //TODO is there any reason this isn't abstract?
 	protected boolean debugTime;
 	
 	public int button_y;
-	protected GUIFallingObjectSpace fallingobjects;
+	public GUIFallingObjectSpace fallingobjects;
 	protected GUIFallingObject[] fallingobj_arr;
 	
 	public GUIScore score;
@@ -82,12 +83,12 @@ public class GUIHandler { //TODO is there any reason this isn't abstract?
 	
 	public int timeToY(float time) {
 		//converts a time to a y coordinate
-		return (int)(button_y - (time - GUIGame.currentTime)*fallpix_per_ms);
+		return (int)(button_y - (time - GameActivity.currentTime)*fallpix_per_ms);
 	}
 	
 	public int yToTime(float y) {
 		//converts a y coordinate to a time
-		return (int)((button_y - y)/fallpix_per_ms + GUIGame.currentTime);
+		return (int)((button_y - y)/fallpix_per_ms + GameActivity.currentTime);
 	}
 	
 	public void nextFrame() throws Exception {

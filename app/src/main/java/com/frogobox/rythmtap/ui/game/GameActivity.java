@@ -1,210 +1,1071 @@
 package com.frogobox.rythmtap.ui.game;
 
-import android.app.Activity;
-import android.app.ProgressDialog;
-import android.content.DialogInterface;
+import android.annotation.SuppressLint;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.Region.Op;
+import android.media.AudioManager;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
+import android.os.SystemClock;
+import android.os.Vibrator;
+import android.util.Log;
+import android.util.SparseArray;
+import android.view.KeyEvent;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.view.View;
+import android.view.WindowManager;
 
-import com.frogobox.rythmtap.model.DataNotesData;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import com.frogobox.rythmtap.R;
+import com.frogobox.rythmtap.common.core.BaseActivity;
 import com.frogobox.rythmtap.model.DataParser;
 import com.frogobox.rythmtap.service.MusicService;
 import com.frogobox.rythmtap.util.Randomizer;
 import com.frogobox.rythmtap.util.Tools;
 import com.frogobox.rythmtap.util.ToolsTracker;
-import com.frogobox.rythmtap.widget.GUIGame;
-import com.frogobox.rythmtap.R;
+import com.frogobox.rythmtap.widget.GUIDrawingArea;
+import com.frogobox.rythmtap.widget.GUIHandler;
+import com.frogobox.rythmtap.widget.GUIHandlerTap;
+import com.frogobox.rythmtap.widget.GUIListeners;
+import com.frogobox.rythmtap.widget.GUIListenersMulti;
+import com.frogobox.rythmtap.widget.GUIScoreDisplay;
+import com.frogobox.rythmtap.widget.GUITextPaint;
 
 import java.io.File;
+import java.util.HashMap;
 
-public class GameActivity implements Runnable {
-    private final Activity activity;
-    private final String title;
+public class GameActivity extends BaseActivity {
+	
+	// TODO - MAJOR CLEANUP!!!
+	
+	private String title = "";
+	private GUIHandler h;
+	private DataParser dp;
+	private MusicService mp;
+	private GUIListeners listeners;
+	
+	private GameViewHandler mView;
+	private int orientation;
+	private boolean backgroundShow;
+	private boolean backgroundSong;
+	private boolean backgroundFiltering;
+	private int backgroundBrightness;
+	private int frame_millis;
+	private double speed_multiplier;
+	private int noteAppearance;
+	private int randomize;
+	private boolean dark;
+	private boolean jumps;
+	private boolean holds;
+	private boolean autoPlay;
+	private boolean showFPS;
+	private boolean screenshotMode;
+	private boolean fullscreen;
+	private boolean debugTime;
+	private int syncDuration;
+	private int manualOffset;
+	private int manualOGGOffset;
+	
+	private static final int ROTATABLE = 2;
+	
+	private final GUIDrawingArea drawarea = new GUIDrawingArea() {
+		
+		private final SparseArray<Bitmap> rsrcBitmaps = new SparseArray<>();
+		@Override
+		public Bitmap getBitmap(String rsrc, int width, int height) {
+			Bitmap b = rsrcBitmaps.get(rsrc.hashCode());
+			if (b == null) {
+				String path = Tools.getNoteSkinsDir() + rsrc;
+				Bitmap loaded = BitmapFactory.decodeFile(path);
+				if (loaded == null) {
+					ToolsTracker.info("Unable to load graphics: " + path);
+					path = Tools.getNoteSkinsDirDefault() + rsrc;
+					loaded = BitmapFactory.decodeFile(path);
+				}
+				if (loaded == null) {
+					ToolsTracker.info("Unable to load graphics: " + path);
+					loaded = BitmapFactory.decodeResource(getResources(), R.drawable.ic_broken_image_filled_black);
+				}
+				b = Bitmap.createScaledBitmap(
+						loaded,
+						width, height,
+						true
+						);
+				rsrcBitmaps.put(rsrc.hashCode(), b);
+			}
+			return b;
+		}
+		@Override
+		public void clearBitmaps() {
+			//grr garbage collector fail
+			for (int i=0; i<rsrcBitmaps.size(); i++) {
+				rsrcBitmaps.valueAt(i).recycle();
+			}
+			rsrcBitmaps.clear();
+		}
+		
+		@Override
+		public int pitchToX(int pitch) { return h.pitchToX(pitch); }
+		@Override
+		public int timeToY(float time) { return h.timeToY(time); }
+		
+		@Override
+		public void setClip_screen(Canvas canvas) {
+		}
+		@Override
+		public void setClip_arrowSpace(Canvas canvas) {
+			/* Note: if we need midpt to depend on button locations or something,
+			 * we can move the logic of this method to GUIHandler
+			 * (in the same manner as timeToY and pitchToX) */
+			boolean fallingDown = false;
+			if (Tools.gameMode == Tools.REVERSE) {
+				fallingDown = true;
+			}
+			int ymin, ymax, midpt;
+			switch (noteAppearance) {
+			case 1: //Hidden (appear, then disappear)
+				midpt = Tools.screen_h / 2 - Tools.button_h;
+				ymin = fallingDown ? 0     : (Tools.screen_h - midpt);
+				ymax = fallingDown ? midpt : Tools.screen_h;
+				break;
+			case 2: //Sudden (appear very late)
+				midpt = Tools.screen_h / 2 - Tools.button_h;
+				ymin = fallingDown ? midpt          : 0;
+				ymax = fallingDown ? Tools.screen_h : (Tools.screen_h - midpt);
+				break;
+			case 3: // Invisible (never appear)
+				ymin = -1;
+				ymax = -1;
+				break;
+			case 0: default: //Visible (normal)
+				ymin = 0;
+				ymax = Tools.screen_h;
+				break;
+			}
+			canvas.clipRect(0, ymin, Tools.screen_w, ymax, Op.INTERSECT);
+		}
+	};
 
-    private int defaultDifficulty;
-    private int availableDifficulty;
-    private String smFilePath;
-    private ProgressDialog loadingDialog;
+	@Override
+	public void onCreateExt(@Nullable Bundle savedInstanceState) {
+		super.onCreateExt(savedInstanceState);
+		setupHideSystemUI();
+		Tools.setContext(this);
+		//System.gc(); // Request for garbage collection and hope it runs before updating starts
+		// Get settings
+		/*
+		int priority = Integer.valueOf(
+				Tools.getSetting(R.string.appPriority, R.string.appPriorityDefault));
+				*/
+		boolean additionalVibrations =
+				Tools.getBooleanSetting(R.string.additionalVibrations, R.string.additionalVibrationsDefault);
+		orientation = Integer.parseInt(
+				Tools.getSetting(R.string.orientation, R.string.orientationDefault));
+		backgroundShow =
+				Tools.getBooleanSetting(R.string.backgroundShow, R.string.backgroundShowDefault);
+		backgroundSong =
+			Tools.getBooleanSetting(R.string.backgroundSong, R.string.backgroundSongDefault);
+		backgroundFiltering =
+				Tools.getBooleanSetting(R.string.backgroundFiltering, R.string.backgroundFilteringDefault);
+		backgroundBrightness = Integer.parseInt(
+				Tools.getSetting(R.string.backgroundBrightness, R.string.backgroundBrightnessDefault));
+		//frame_millis = Integer.valueOf(
+		//		Tools.getSetting(R.string.fps, R.string.fpsDefault));
+		frame_millis = 17; // 60 FPS = 1000/17
+		speed_multiplier = Double.parseDouble(
+				Tools.getSetting(R.string.speedMultiplier, R.string.speedMultiplierDefault));
+		noteAppearance = Integer.parseInt(
+				Tools.getSetting(R.string.noteAppearance, R.string.noteAppearanceDefault));
+		randomize = Integer.parseInt(
+				Tools.getSetting(R.string.randomize, R.string.randomizeDefault));
+		dark = Tools.getBooleanSetting(R.string.dark, R.string.darkDefault);
+		jumps = Tools.getBooleanSetting(R.string.jumps, R.string.jumpsDefault);
+		holds = Tools.getBooleanSetting(R.string.holds, R.string.holdsDefault);
+		autoPlay = Tools.getBooleanSetting(R.string.autoPlay, R.string.autoPlayDefault);
+		showFPS = Tools.getBooleanSetting(R.string.showFPS, R.string.showFPSDefault);
+		screenshotMode = Tools.getBooleanSetting(R.string.screenshotMode, R.string.screenshotModeDefault);
+		fullscreen = Tools.getBooleanSetting(R.string.fullscreen, R.string.fullscreenDefault);
+		debugTime = Tools.getBooleanSetting(R.string.debugTime, R.string.debugTimeDefault);
+		syncDuration = Integer.parseInt(
+				Tools.getSetting(R.string.syncDuration, R.string.syncDurationDefault));
+		manualOffset = Integer.parseInt(
+				Tools.getSetting(R.string.manualOffset, R.string.manualOffsetDefault));
+		manualOGGOffset = Integer.parseInt(
+				Tools.getSetting(R.string.manualOGGOffset, R.string.manualOGGOffsetDefault));
+		
+		// Make the game have higher priority to reduce lag
+		//if (priority > 0) Process.setThreadPriority(priority);
+		
+		// Music setup
+		setVolumeControlStream(AudioManager.STREAM_MUSIC); // To control media volume at all times
+		
+		// Fullscreen?
+		if (fullscreen) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+				getWindow().setDecorFitsSystemWindows(false);
+			} else {
+				getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+			}
+		}
+		Tools.setScreenDimensions();
+		
+		// Setup view
+		int hardwareAccelerate = Integer.parseInt(
+				Tools.getSetting(R.string.hardwareAccelerate, R.string.hardwareAccelerateDefault));
+		if (hardwareAccelerate == 2) {
+			mView = new RefreshHandlerView(this);
+		} else {
+			// SurfaceView is not hardware accelerated but faster than normal Views
+			// Is this still true?
+			mView = new SurfaceHolderView(this);
+		}
+		setContentView(mView.getView());
 
-    public static DataParser dp;
+		h = new GUIHandlerTap();
 
-    // Thread
-    private String errorMessage = "";
+		listeners = new GUIListenersMulti(h);
+		mView.getView().setOnTouchListener(listeners.getOnTouchListener());
+		
+		this.dp = InitGameActivity.dp;
+		h.loadSongData(dp);
+		String musicFilePath = dp.df.getMusic().getPath();
+		mp = new MusicService(musicFilePath);
+		if (Tools.isOGGFile(musicFilePath)) {
+			manualOffset += manualOGGOffset;
+		}
+		
+		// Scoreboard		
+		h.score.loadHighScore(dp.df.md5hash + dp.getNotesData().getDifficultyMeter());
+		
+		// Title
+		String songtitle = dp.df.getTitle();
+		if (songtitle.length() <= 1) {
+			songtitle = dp.df.getTitleTranslit();
+		}
+		title = songtitle + Tools.getString(R.string.GUIGame_by) + dp.df.getArtist();
+		this.setTitle(title);
+		
+		// Vibrate!
+		if (additionalVibrations) {
+			((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(300); // ready to rumble!
+		}
+		
+		// Setup display
+		h.setupXY();
+		mView.getGameView().setupDraw();
+		if (orientation != ROTATABLE) setRequestedOrientation(orientation);
+		
+		//Preload commonly used bitmaps
+		/*for (int pitch=0; pitch<Tools.PITCHES; pitch++) {
+			Bitmap b;
+			for (Integer frac: new int[] {4, 8, 12, 16, 24, 32, 48, 64, 192}) {
+				b = drawarea.getBitmap(GUINoteImage.rsrc(pitch, frac, false));
+			}
+			b = drawarea.getBitmap(GUINoteImage.rsrc(pitch, 0, true));
+			b = drawarea.getBitmap(GUINoteImage.rsrc(pitch, 0, false));
+		}*/
+		
+		// Start updating
+		mView.startTimer();
+		h.setMessageLong(Tools.getString(R.string.GUIGame_ready), 0, 64, 255); // royal blue
+	}
+	
+	@Override
+	public void onConfigurationChanged(@NonNull Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+		Tools.setScreenDimensions();
+		h.setupXY();
+		mView.getGameView().setupBG();
+	}
+	public static int currentTime = 0;
 
-    public GameActivity(Activity activity, String title) {
-        this.activity = activity;
-        this.title = title;
+	private class SurfaceHolderThread extends Thread {
 
-        defaultDifficulty = 0;
-        availableDifficulty = 0;
-        smFilePath = null;
-        loadingDialog = null;
-    }
+		private final GameView _view;
+		private boolean _run = false;
+		private boolean _paused = false;
+		private final SurfaceHolder _surfaceHolder;
+		private final int _hardwareAccelerate;
 
-    // Title Bar
-    public void setTitle() {
-        try {
-            if (loadingDialog != null && loadingDialog.isShowing()) loadingDialog.cancel();
-            activity.setTitle(title);
-        } catch (IllegalArgumentException e) {
-            ToolsTracker.error("MenuStartGame.setTitle", e, smFilePath);
-            if (Tools.getBooleanSetting(R.string.debugLogCat, R.string.debugLogCatDefault)) {
-                Tools.toast(Tools.getString(R.string.Tools_window_error));
-            }
-        }
-    }
+		public SurfaceHolderThread(SurfaceHolder surfaceHolder, GameView view) {
+			_surfaceHolder = surfaceHolder;
+			_view = view;
+			_hardwareAccelerate = Integer.parseInt(
+					Tools.getSetting(R.string.hardwareAccelerate, R.string.hardwareAccelerateDefault));
+		}
+		
+		public void setPaused(boolean paused) {
+			_paused = paused;
+		}
+		
+		public void setRunning(boolean run) {
+			_run = run;
+		}
+	 
+		@Override
+		public void run() {
+			while (_run) {
+				Canvas c = null;
+				try {
+					//synchronized (_surfaceHolder) {
+						if (_hardwareAccelerate == 1 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+							c = _surfaceHolder.lockHardwareCanvas();
+						} else {
+							c = _surfaceHolder.lockCanvas(null);
+						}
+						if (_view != null && c != null) {
+							if (!_paused) {
+								_view.update();
+							}
+							_view.onDraw(c);
+						}
+					//}
+				} finally {
+					// do this in a finally so that if an exception is thrown
+					// during the above, we don't leave the Surface in an
+					// inconsistent state
+					if (c != null) {
+						_surfaceHolder.unlockCanvasAndPost(c);
+					}
+				}
+			}
+		}
+	}
+	
+	private class GameView {
+		private int frameCount = 0;
+		private int frameCountTotal = 0;
+		private long fpsStartTime = 0;
+		private long fpsTotalTime = 0;
+		private double fps = 0;
+		private double fpsTotal = 0;
+		//private String fpsTruncated = "";
+		//private String fpsTruncatedTotal = "";
+		private boolean fpsTotalStarted = false;
+		
+		public void startTimer() {
+			// To be safe
+			mStartTime = 0;
+			musicStartTime = 0;
+			travelOffset = 0;
+			mFrameNo = 0;
+			countDown = -75; // 75 frames before the song begins
+			syncCounter = 0;
+		}
+		
+		private int margin, height;
+		private Bitmap bgImage;
+		private Paint bgImageFiltering, bgSolidPaint;
+		private Matrix bgImageMatrix;
+		private GUITextPaint textPaint;
+		private GUITextPaint textComboPaint;
+		private Paint hpBackPaint, hpBarPaint, hpBorderPaint;
+		private Rect hpBackRect, hpBarRect, hpBorderRect;
+		private GUITextPaint leftSettingsPaint, rightSettingsPaint;
+		private String leftSettingsTop, leftSettingsBottom;
+		private String rightSettingsBottom, rightSettingsTop;
+		private GUITextPaint textScorePaint, autoPlayPaint;
+		private GUITextPaint titlePaint;
+		private Paint titlebarPaint;
+		
+		private GUIScoreDisplay scoreDisplay;
+		
+		public void clearBitmaps() {
+			if (bgImage != null) {
+				bgImage.recycle(); //grr garbage collector
+				bgImage = null;
+			}
+		}
+		
+		private void setupBG() {
+			
+			// Dimensions
+			margin = Tools.scale(7);
+			height = Tools.scale(17);
+			
+			// Background
+			clearBitmaps();
+			if (backgroundShow) {
+				int leftShift, topShift;
+				Bitmap bgImageUnscaled;
+				File bg = dp.df.getBackground();
+				if (bg != null && bg.canRead() && backgroundSong) {
+					// Background image file finding is done within DataFile's setBackground 
+					bgImageUnscaled = BitmapFactory.decodeFile(bg.getPath());
+				} else {
+					bgImageUnscaled = BitmapFactory.decodeResource(getResources(),
+							R.drawable.bg_blue);
+				}
+				if (bgImageUnscaled != null) {
+					// Create a new canvas to draw background image on
+					bgImage = Bitmap.createBitmap(Tools.screen_w, Tools.screen_h, Config.RGB_565);
+					Canvas bgImageCanvas = new Canvas(bgImage);
+					
+					// Set scaling and alpha
+					int scaled_width = Tools.screen_w, scaled_height = Tools.screen_h;
+					if (Tools.screen_h > Tools.screen_w) {
+						scaled_width = Tools.screen_h * bgImageUnscaled.getWidth() / bgImageUnscaled.getHeight();
+						leftShift = (Tools.screen_w - scaled_width) / 2;
+						topShift = 0;
+					} else {
+						scaled_height = Tools.screen_w * bgImageUnscaled.getHeight() / bgImageUnscaled.getWidth();
+						leftShift = 0;
+						topShift = (Tools.screen_h - scaled_height) / 2;
+					}
+					Bitmap bgImageScaled = Bitmap.createScaledBitmap(
+							bgImageUnscaled, scaled_width, scaled_height, true);
+					Paint bgAlpha = new Paint();
+					bgAlpha.setAlpha(Tools.MAX_OPA * backgroundBrightness / 100);
+					
+					// Draw background image onto canvas
+					bgImageCanvas.drawBitmap(bgImageScaled, leftShift, topShift, bgAlpha);
+					bgImageUnscaled.recycle();
+					bgImageScaled.recycle();
 
-    public void showLoadingDialog() {
-        String smFileName = smFilePath;
-        if (smFilePath.contains("/")) {
-            smFileName = smFilePath.substring(smFilePath.lastIndexOf('/') + 1);
-        }
-        activity.setTitle(Tools.getString(R.string.MenuStartGame_loading_title) + smFileName);
-        loadingDialog = ProgressDialog.show(activity, null, Tools.getString(R.string.MenuStartGame_loading_progress_bar) + smFileName, true);
-    }
+					// Draw grey boxes behind info text
+					Paint rectAlpha = new Paint(); // default colour is black
+					rectAlpha.setAlpha(Tools.MAX_OPA * backgroundBrightness / (4 * 100));
+					bgImageCanvas.drawRect(0, 0, Tools.screen_w, (margin * 3 + height * 3), rectAlpha);
+					bgImageCanvas.drawRect(0, Tools.screen_h - (margin + height * 2), Tools.screen_w, Tools.screen_h, rectAlpha);
+					
+					// Draw Tapboxes
+					GameActivity.this.h.drawTapboxes(bgImageCanvas); // Draw it directly on the background
+					
+					// Set filtering and matrix
+					if (backgroundFiltering) {
+						bgImageFiltering = new Paint();
+						bgImageFiltering.setFilterBitmap(true);
+					} else {
+						bgImageFiltering = null;
+					}
+					bgImageMatrix = new Matrix();
+					bgImageMatrix.reset();
+				}
+			}	
+		}
+		
+		@SuppressLint("DefaultLocale")
+		private void setupDraw() {
+			setupBG();
+			
+			// Background
+			bgSolidPaint = new Paint();
+			bgSolidPaint.setARGB(Tools.MAX_OPA, 0,0,0);
+			
+			// Accuracy message
+			textPaint = new GUITextPaint(Tools.scale(32)).alignCenter().serif().
+				bold().italic().strokeWidth(Tools.scale(3));
+			
+			// Combo
+			textComboPaint = new GUITextPaint(Tools.scale(36)).alignCenter().sansSerif().
+				bold().strokeWidth(Tools.scale(3));
+			
+			// Health
+			hpBackPaint = new Paint();
+			hpBackPaint.setARGB(60,0,0,255);
+			hpBackRect = new Rect(margin, margin * 2 + height, Tools.screen_w - margin, margin * 2 + height * 2);
+			hpBarPaint = new Paint();
+			hpBarRect = new Rect(margin, margin * 2 + height, Tools.screen_w - margin, margin * 2 + height * 2);
+			hpBorderPaint = new Paint();
+			hpBorderPaint.setStyle(Paint.Style.STROKE);
+			hpBorderPaint.setStrokeWidth(Tools.scale(2));
+			hpBorderPaint.setARGB(Tools.MAX_OPA, 0, 0, 0);
+			hpBorderRect = new Rect(margin, margin * 2 + height, Tools.screen_w - margin, margin * 2 + height * 2);
+			
+			// Left Settings (difficulty and credits)
+			leftSettingsPaint = new GUITextPaint(Tools.scale(13)).alignLeft().serif().
+				italic().ARGB(170, 255, 255, 255);
+			
+			// Credits
+			leftSettingsTop = dp.df.getCredit();
+			
+			// Difficulty
+			leftSettingsBottom =
+				dp.getNotesData().getDifficulty().toString() + " [" + 
+				dp.getNotesData().getDifficultyMeter() + "]";
+			
+			// Right Settings (modifiers)
+			rightSettingsPaint = new GUITextPaint(Tools.scale(13)).alignRight().serif().
+				italic().ARGB(170, 255, 255, 255);
 
-    private void showFailParseMsg() {
-        Tools.error(Tools.getString(R.string.MenuStartGame_fail_parse) + smFilePath + Tools.getString(R.string.Tools_error_msg) + errorMessage, Tools.cancel_action);
-    }
+			// Modifiers
+			rightSettingsBottom = "";
+			if (dark) rightSettingsBottom += Tools.getString(R.string.GUIGame_dark);
+			switch(noteAppearance) {
+				case 1: rightSettingsBottom += Tools.getString(R.string.GUIGame_hidden); break;
+				case 2: rightSettingsBottom += Tools.getString(R.string.GUIGame_sudden); break;
+				case 3: rightSettingsBottom += Tools.getString(R.string.GUIGame_invisible); break;
+				default: break;
+			}
+			if (jumps) rightSettingsBottom += Tools.getString(R.string.GUIGame_jumps);
+			switch (randomize) {
+				case Randomizer.OFF:
+					if (!holds)
+						rightSettingsBottom += Tools.getString(R.string.GUIGame_no_holds);
+					break;
+				case Randomizer.STATIC:
+					rightSettingsBottom += Tools.getString(R.string.GUIGame_randomize_static);
+					break;
+				case Randomizer.DYNAMIC:
+					rightSettingsBottom += Tools.getString(R.string.GUIGame_randomize_dynamic);
+					break;
+			}
+			if (rightSettingsBottom.length() > 2) {
+				rightSettingsBottom = rightSettingsBottom.substring(2); // ignore the first ", "
+			} else {
+				rightSettingsBottom = Tools.getString(R.string.GUIGame_standard);
+			}
+			
+			// BPM & Speed
+			rightSettingsTop =
+				String.format(
+						"%s BPM, %3.2fx",
+						dp.df.getBPMRange(),
+						speed_multiplier
+						);
+			
+			// Title
+			titlePaint = new GUITextPaint(Tools.scale(14)).alignLeft().bold().ARGB(Tools.MAX_OPA, 0, 0, 0);
+			titlebarPaint = new Paint();
+			titlebarPaint.setColor(Color.LTGRAY);
+			titlebarPaint.setAlpha(Tools.MAX_OPA * 3 / 4);
+			
+			// Score
+			textScorePaint = new GUITextPaint(Tools.scale(13)).alignRight().monospace().
+				italic().ARGB(Tools.MAX_OPA, 255, 255, 255);
+			
+			// Show FPS or Auto-Play
+			if (showFPS || autoPlay) {
+				autoPlayPaint = new GUITextPaint(Tools.scale(13)).alignLeft().monospace().
+					italic().ARGB(Tools.MAX_OPA, 255, 255, 255);
+			} else {
+				autoPlayPaint = null;
+			}
+			
+			//Endgame score display
+			scoreDisplay = new GUIScoreDisplay(h.score);
+			
+			// Tracking
+			HashMap<String,String> attributes = new HashMap<>();
+			attributes.put("leftSettingsTop", leftSettingsTop);
+			attributes.put("leftSettingsBottom", leftSettingsBottom);
+			attributes.put("rightSettingsTop", rightSettingsTop);
+			attributes.put("rightSettingsBottom", rightSettingsBottom);
+			ToolsTracker.data("Game started", attributes);
+		}
+		
+		public void onDraw(Canvas canvas) {
 
-    private void startGameActivity() {
-        setTitle();
-        activity.startActivity(new Intent(activity, GUIGame.class));
-    }
+			// FPS
+			if (showFPS) {
+				frameCount++;
+				if (frameCount > 10) {
+					long fpsCurrentTime = SystemClock.elapsedRealtime(); 
+					fps = ((double)(frameCount) / ((double)(fpsCurrentTime - fpsStartTime) / 1000d));
+					// Truncate to 2 decimal places
+					//fpsTruncated = String.format("%.2f", fps); // Too long, use (int)fps
+					if (fpsTotalStarted) {
+						frameCountTotal += frameCount;
+						fpsTotalTime += fpsCurrentTime - fpsStartTime;
+						fpsTotal = ((double)(frameCountTotal) / ((double)(fpsTotalTime) / 1000d));
+						//fpsTruncatedTotal = String.format("%.2f", fpsTotal); // Too long, use (int)fpsTotal
+					} else {
+						if (fps > 0 && fps < 99) { // Sanity
+							fpsTotalStarted = true;
+						}
+					}
+					
+					frameCount = 0;
+					fpsStartTime = SystemClock.elapsedRealtime();
+				}
+			}
+			
+			// Just in case
+			if (h == null) {
+				return;
+			}
+									
+			// Background
+			if (bgImage != null) {
+				canvas.drawBitmap(bgImage, bgImageMatrix, bgImageFiltering);
+			} else {
+				//canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), bgSolidPaint);
+				canvas.drawPaint(bgSolidPaint);
+			}
+			
+			// Arrows
+			//GUIFallingObject[] falling_objs = h.get_objs();
+			if (h.fallingobjects == null)
+				return;
+			h.drawFallingObjects(canvas, drawarea);
+			
+			// Title
+			canvas.drawRect(0, 0, Tools.screen_w, margin + height, titlebarPaint);
+			titlePaint.draw(canvas, title, margin, height);
+			
+			// Health
+			double health = h.score.getHealthPercent();
+			if (health > 0.5)
+				hpBarPaint.setARGB(Tools.MAX_OPA, (int)((1-health)*255*2), 255, 0);
+			else if (health > 0)
+				hpBarPaint.setARGB(Tools.MAX_OPA, 255, (int)(health*255*2), 0);
+			else {
+				hpBarPaint.setARGB(Tools.MAX_OPA, 127,0,0);
+				health = 1; //for drawing purposes only
+			}
+			hpBarRect.right = (int)((Tools.screen_w - margin) * health);
 
-    private void checkOGG() {
-        String musicFilePath = dp.df.getMusic().getPath();
-        if (Tools.isOGGFile(musicFilePath) &&
-                !Tools.getBooleanSetting(R.string.ignoreOGGWarning, R.string.ignoreOGGWarningDefault) &&
-                Integer.parseInt(Tools.getSetting(R.string.manualOGGOffset, R.string.manualOGGOffsetDefault)) == 0
-        ) {
-            // OGG warning
-            DialogInterface.OnClickListener start_action = (dialog, id) -> {
-                dialog.cancel();
-                startGameActivity();
-            };
+			canvas.drawRect(hpBackRect, hpBackPaint);
+			canvas.drawRect(hpBarRect, hpBarPaint);
+			canvas.drawRect(hpBorderRect, hpBorderPaint);
+			
+			// Show FPS or AutoPlay
+			if (showFPS && autoPlay) {
+				autoPlayPaint.draw(canvas, "AUTO FPS:" + (int)fps + "/" + (int)fpsTotal, margin * 2, margin * 2 + height * 3);
+			} else if (showFPS) {
+				autoPlayPaint.draw(canvas, "FPS:" + (int)fps + "/" + (int)fpsTotal, margin * 2, margin * 2 + height * 3);
+			} else if (autoPlay) {
+				autoPlayPaint.draw(canvas, "AUTO", margin * 2, margin + height * 3);
+			}
+			
+			// Accuracy message
+			int opa = (2 * Tools.MAX_OPA - h.msg_frames * frame_millis);
+			opa = (opa < 0) ? 0 : Math.min(opa, Tools.MAX_OPA);
+			if (opa > 0) {
+				textPaint.ARGB(opa,h.msg_r,h.msg_g,h.msg_b);
+				textPaint.strokeARGB(opa,255,255,255);
+				textPaint.draw(canvas, h.msg,
+						(float) (Tools.screen_w/2), Tools.screen_h - Tools.screen_h/(float)3 - h.msg_frames * frame_millis / (float)10);
+			}
+			
+			// Combo
+			int opac = (3 * Tools.MAX_OPA - h.combo_frames * frame_millis);
+			opac = (opac < 0) ? 0 : Math.min(opac, Tools.MAX_OPA);
+			if (opac > 0 && h.score.comboCount > GUIHandler.MIN_COMBO) {
+				if (h.score.comboCount < 100) {
+					textComboPaint.ARGB(opac, 255, 220, 0); // yellow
+					textComboPaint.strokeARGB(opac, 255, 192, 0);
+				} else if (h.score.comboCount < 500) {
+					textComboPaint.ARGB(opac, 255, 160, 0); // light orange
+					textComboPaint.strokeARGB(opac, 255, 120, 0);
+				} else if (h.score.comboCount < 1000) {
+					textComboPaint.ARGB(opac, 255, 128, 0); // orange
+					textComboPaint.strokeARGB(opac, 255, 64, 0);
+				} else {
+					textComboPaint.ARGB(opac, 255, 64, 0); // almost red
+					textComboPaint.strokeARGB(opac, 192, 0, 0);
+				}
+				textComboPaint.draw(canvas, h.combo, (float) (Tools.screen_w/2), (float) Tools.screen_h/2);
+			}
+			
+			// Settings
+			leftSettingsPaint.draw(canvas, leftSettingsTop, margin, Tools.screen_h - margin - height);
+			leftSettingsPaint.draw(canvas, leftSettingsBottom, margin, Tools.screen_h - margin);
+			rightSettingsPaint.draw(canvas, rightSettingsTop, Tools.screen_w - margin, Tools.screen_h - margin - height);
+			rightSettingsPaint.draw(canvas, rightSettingsBottom, Tools.screen_w - margin, Tools.screen_h - margin);
+			
+			// Score
+			if (h.scoreboard_frames < 0) {
+				textScorePaint.draw(canvas, h.score.highScore + "/" + h.score.score + "PTS", Tools.screen_w - margin * 2, margin * 2 + height * 3);
+			} else {
+				scoreDisplay.updateStatus(h.score.comboCount == h.score.noteCount);
+				scoreDisplay.draw(canvas, h.scoreboard_frames * frame_millis);
+			}
+			
+		}
+		
+		// Timing, public for outside access
+		long pauseTime = 0;
+		long mStartTime = 0;
+		int musicCurrentPosition = 0;
+		int musicStartTime = 0;
+		int syncAdjust = 0;
+		int travelOffset = 0;
+		int mFrameNo = 0;
+		int countDown = -180; // 180 frames before the song begins, ~3s
+		int syncCounter = 0;
+		private void nextFrame() {
+			if (h != null) {
+				try {
+					h.nextFrame();
+				} catch (Exception e) {
+					if (Tools.getBooleanSetting(R.string.debugLogCat, R.string.debugLogCatDefault)) {
+					Tools.toast_long(
+							Tools.getString(R.string.GUIGame_nextFrame_error) + 
+							Tools.getString(R.string.Tools_error_msg) +
+							e.getMessage() +
+							Tools.getString(R.string.Tools_notify_msg)
+							);
+					}
+					ToolsTracker.error("GUIGame.nextFrame", e, title);
+					Log.e("GUIGame.nextFrame", Log.getStackTraceString(e));
+				}
+			}
+		}
+		public void update() {
+			// Initial "Ready" countdown"
+			if (countDown < 0) {
+				currentTime = countDown * frame_millis + manualOffset;
+				nextFrame();
+				countDown++;
+			// Countdown done, start the music!
+			} else if (countDown == 0) {
+				mp.startPlaying();
+				travelOffset = h.travel_offset_ms();
+				musicCurrentPosition = mp.getCurrentPosition();
+				musicStartTime = musicCurrentPosition + manualOffset;
+				mStartTime = SystemClock.elapsedRealtime();
+				countDown++; // Countdown positive, no more countdown!
+				currentTime = (int)(SystemClock.elapsedRealtime() - mStartTime + musicStartTime);
+			// Game is running
+			} else {				
+				currentTime = (int)(SystemClock.elapsedRealtime() - mStartTime + musicStartTime);
+				int desiredFrameNo = (currentTime + travelOffset)/frame_millis;
+				
+				// Sync during the first x ms
+				// Some re-syncing issue with OGGs due to seekTo, so syncAdjust slowly
+				//float syncDurationTemp = syncDuration;
+				//if (Build.VERSION.SDK_INT >= 23) {
+				//	syncDurationTemp = syncDuration * Float.parseFloat(Tools.getSetting(R.string.bpmMultiplier, R.string.bpmMultiplierDefault));
+				//}
+				if (syncCounter * frame_millis < syncDuration) {
+					if (mp.isPlaying()) {
+						if (syncCounter % 2 == 0) {
+							musicCurrentPosition = mp.getCurrentPosition();
 
-            DialogInterface.OnClickListener cancel_action = (dialog, id) -> {
-                dialog.cancel();
-                setTitle();
-            };
+							if (Build.VERSION.SDK_INT >= 23) {
+								syncAdjust = ((int) ((((float) currentTime) * Float.parseFloat(Tools.getSetting(R.string.bpmMultiplier, R.string.bpmMultiplierDefault))) - ((float) (musicCurrentPosition + manualOffset)))) / 8;
+							} else {
+								syncAdjust = (currentTime - (musicCurrentPosition + manualOffset)) / 8;
+							}
 
-            Tools.warning(Tools.getString(R.string.MenuStartGame_ogg_warning), start_action, cancel_action, R.string.ignoreOGGWarning);
-            ToolsTracker.info("OGG song loaded");
-        } else {
-            startGameActivity();
-        }
-    }
+							mStartTime += syncAdjust;
+							if (debugTime) {
+								h.setMessage(
+										"m" + musicCurrentPosition + 
+										"/t" + currentTime + 
+										"/d" + syncAdjust
+										, 0, 0, 0);
+							}
+						}
+					}
+					syncCounter++;
+				}
+				
+				while (mFrameNo < desiredFrameNo) {
+					nextFrame();
+					mFrameNo++;
+				}
+			}
+		}
+	}
+	
+	private interface GameViewHandler {
+		View getView();
+		GameView getGameView();
+		void startTimer();
+		void startUpdating();
+		void stopUpdating();
+		void forceUpdate();
+		void update();
+	}
+	
+	private class RefreshHandlerView extends View implements GameViewHandler {
+		private final GameView mView;
+		private final RefreshHandler mRedrawHandler;
+		
+		public RefreshHandlerView(Context context) {
+			super(context);
+			mView = new GameView();
+			mRedrawHandler = new RefreshHandler();
+			this.setFocusable(true);
+			this.requestFocus();
+			this.startTimer();
+		}
+		
+		public View getView() {
+			return this;
+		}
+	
+		public GameView getGameView() {
+			return mView;
+		}
+		
+		public void update() {
+			mView.update();
+			mRedrawHandler.start();
+		}
+		
+		public void startTimer() {
+			mView.startTimer();
+			mRedrawHandler.start();
+		}
+		
+		public void startUpdating() {
+			mRedrawHandler.start();
+		}
+		
+		public void stopUpdating() {
+			mRedrawHandler.removeCallbacksAndMessages(null);
+		}
+		
+		public void forceUpdate() {
+			mRedrawHandler.handleMessage(null);
+		}
+		
+		@Override
+		public void onDraw(Canvas canvas) {
+			mView.onDraw(canvas);
+		}
+		
+		class RefreshHandler extends Handler {
+			@Override
+			public void handleMessage(Message msg) {
+				RefreshHandlerView.this.update();
+				RefreshHandlerView.this.invalidate();
+			}
+			
+			public void start() {
+				this.removeMessages(0);
+				sendMessage(obtainMessage(0));
+			}
+		}
+	}
+	
+	private class SurfaceHolderView extends SurfaceView implements SurfaceHolder.Callback, GameViewHandler {
+		public SurfaceHolderThread _thread;
+		private final GameView mView;
+		
+		public SurfaceHolderView(Context context) {
+			super(context);
+			mView = new GameView();
+			getHolder().addCallback(this);
+			_thread = new SurfaceHolderThread(this.getHolder(), mView);
+		}
+		
+		public View getView() {
+			return this;
+		}
+		
+		public GameView getGameView() {
+			return mView;
+		}
+		
+		public void update() {
+			mView.update();
+		};
+		
+		public void startTimer() {
+			mView.startTimer();
+			mView.update();
+		}
+		
+		public void startUpdating() {
+			_thread.setPaused(false);
+		}
+		
+		public void stopUpdating() {
+			_thread.setPaused(true);
+		}
+		
+		public void forceUpdate() {
+			// TODO Auto-generated method stub
+		}
+	
+		public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+			// TODO Auto-generated method stub
+		}
 
-    private void checkDifficulty() {
-        // Different difficulty warning
-        if (availableDifficulty != defaultDifficulty &&
-                !Tools.getBooleanSetting(R.string.ignoreDifficultyWarning, R.string.ignoreDifficultyWarningDefault)
-        ) {
-            DialogInterface.OnClickListener start_action = (dialog, id) -> {
-                dialog.cancel();
-                checkOGG();
-            };
+		public void surfaceCreated(@NonNull SurfaceHolder holder) {
+			_thread = new SurfaceHolderThread(holder, mView);
+			_thread.setRunning(true);
+			if (!_thread.isAlive()) {
+				_thread.start();
+			}
+			// Hack sync fix
+			//resumeGame(false);
+			pauseGame(false, false);
+			resumeGame(false);
+		}
 
-            DialogInterface.OnClickListener cancel_action = (dialog, id) -> {
-                dialog.cancel();
-                setTitle();
-            };
+		@Override
+		public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
+			boolean retry = true;
+			_thread.setRunning(false);
+			while (retry) {
+				try {
+					_thread.join();
+					retry = false;
+				} catch (InterruptedException e) {
+					// we will try it again and again...
+				}
+			}
+		}
+	}
+	
+	private void stopGame(String msg, int r, int g, int b, boolean screenshot, boolean showText) {
+		if (mp != null){
+			mp.pausePlaying();
+		}
+		if (mView != null && !h.score.isPaused) {
+			if (!screenshotMode) {
+				if (showText) {
+					h.setMessage(msg, r, g, b);
+				}
+				mView.forceUpdate();
+			}
+			mView.stopUpdating();
+			mView.getGameView().pauseTime = SystemClock.elapsedRealtime();
+			h.score.isPaused = true;
+			if (screenshotMode && screenshot) {
+				//Tools.takeScreenshot(mView);
+				//Tools.takeScreenshot(this.getWindow().getDecorView(), dp.df.getTitle()); // This includes both the header AND mView - I don't know why >_>
+				takeScreenshot();
+			}
+		}
+		h.pauseVibrator();
+	}
+	
+	private void takeScreenshot() {
+		Bitmap screenshot = Bitmap.createBitmap(Tools.screen_w, Tools.screen_h, Bitmap.Config.ARGB_8888);
+		Canvas canvas = new Canvas(screenshot);
+		mView.getGameView().onDraw(canvas);
+		Tools.takeScreenshot(screenshot, dp.df.getTitle());
+	}
+	
+	private void pauseGame(boolean screenshot) {
+		pauseGame(screenshot, true);
+	}
+	private void pauseGame(boolean screenshot, boolean showText) {
+		stopGame(Tools.getString(R.string.GUIGame_paused), 255, 190, 0, screenshot, showText); // gold
+	}
 
-            Tools.warning(
-                    Tools.getString(R.string.MenuStartGame_difficulty_selected) +
-                            DataNotesData.Difficulty.values()[defaultDifficulty].toString() +
-                            Tools.getString(R.string.MenuStartGame_difficulty_closest) +
-                            DataNotesData.Difficulty.values()[availableDifficulty].toString() +
-                            Tools.getString(R.string.MenuStartGame_difficulty_continue),
-                    start_action,
-                    cancel_action,
-                    R.string.ignoreDifficultyWarning
-            );
-        } else {
-            checkOGG();
-        }
-    }
+	public static void triggerRebirth(Context context) {
+		PackageManager packageManager = context.getPackageManager();
+		Intent intent = packageManager.getLaunchIntentForPackage(context.getPackageName());
+		ComponentName componentName = intent.getComponent();
+		Intent mainIntent = Intent.makeRestartActivityTask(componentName);
+		context.startActivity(mainIntent);
+		Runtime.getRuntime().exit(0);
+	}
 
-    private final Handler handler = new Handler(Looper.getMainLooper()) {
-        public void handleMessage(Message msg) {
-            //case -1:
-            if (msg.what == 0) {
-                checkDifficulty();
-            } else {
-                showFailParseMsg();
-                setTitle();
-            }
-        }
-    };
+	private void exitGame() {
+		stopGame(Tools.getString(R.string.GUIGame_exiting), 0, 64, 255, false, true); // royal blue
+		if (Tools.getSetting(R.string.hardwareAccelerate, R.string.hardwareAccelerateDefault).equals("0")) {
+			triggerRebirth(this);
+		}
+	}
+	private void resumeGame() {
+		resumeGame(true);
+	}
+	private void resumeGame(boolean showText) {
+		if (mView != null && h.score.isPaused) {
+			if (showText) h.setMessage(Tools.getString(R.string.GUIGame_resumed), 255, 190, 0); // gold
+			if (!(h.done || h.score.gameOver)) {
+				mp.resumePlaying();
+				mView.getGameView().syncCounter = -200; // Sync for at least 200 frames
+			}
+			long diff = (SystemClock.elapsedRealtime() - mView.getGameView().pauseTime);
+			mView.getGameView().mStartTime += diff;
+			//mView.fpsStartTime += diff;
+			mView.startUpdating();
+			h.score.isPaused = false;
+		}
+	}
+	
+	@Override
+	public void onWindowFocusChanged (boolean hasFocus) {
+		if (hasFocus) {
+			Tools.setContext(this);
+			this.setTitle(title);
+			if (h.score.isPaused) { 
+				resumeGame(mView.getGameView().countDown >= 0);
+			}
+		} else if (!autoPlay) { // continue even if screen turns off
+			pauseGame(false);
+		}
+	}
+	
+	private void clearBitmaps() {
+		/*
+		 * Delete any bitmaps still lying around in memory.
+		 * This really shouldn't be necessary...
+		 * 
+		 * Not sure where the best place to call this is.
+		 * onDestroy isn't necessarily called at a useful time, but onPause
+		 * could potentially be resumed and then we have no images. This is fine
+		 * for the arrow image cache (they'll just get autoreloaded), not fine for the
+		 * background (needs to be reloaded manually).
+		 * 
+		 * http://stackoverflow.com/questions/1949066/java-lang-outofmemoryerror-bitmap-size-exceeds-vm-budget-android
+		 * http://code.google.com/p/android/issues/detail?id=8488
+		 * */
+		mView.getGameView().clearBitmaps();
+		drawarea.clearBitmaps();
+		//System.gc();
+	}
+	
+	@Override
+	protected void onDestroy() {
+		clearBitmaps(); // I removed this in the old code
+		exitGame();
+		h.releaseVibrator();
+		mp.onDestroy();
+		super.onDestroy();
+	}
+	
+	@Override
+	//TODO somehow move these to GUIListeners. This may require passing this GUIGame to the listener as a a param.
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if ((keyCode == KeyEvent.KEYCODE_BACK)) {
+			exitGame(); // this is needed cause something things go screwy when autoPlay is on
+		}
+		int pitch = GUIListeners.keyCode2Direction(keyCode);
 
-    public void run() {
-        try {
-            // Parse stepfile
-            dp = new DataParser(smFilePath);
-            defaultDifficulty = Integer.parseInt(Tools.getSetting(R.string.difficultyLevel, R.string.difficultyLevelDefault));
-            for (int i = dp.df.notesData.size(); i > 0; i--) {
-                availableDifficulty = dp.df.notesData.get(i - 1).getDifficulty().ordinal();
-                if (availableDifficulty <= defaultDifficulty) {
-                    dp.setNotesDataIndex(i - 1);break;
-                }
-            }
+		if (keyCode == KeyEvent.KEYCODE_SEARCH || keyCode == KeyEvent.KEYCODE_MENU) {
+			if (h.score.isPaused) 
+				resumeGame();
+			else 
+				pauseGame(true);
+			return true;
+		}
+		
+		if (autoPlay || h.done || h.score.gameOver || pitch == -1)
+			return super.onKeyDown(keyCode, event);	
+		else
+			return h.onTouch_Down_One(pitch);
+	}
+	
+	@Override
+	public boolean onKeyUp(int keyCode, KeyEvent event) {
+		int pitch = GUIListeners.keyCode2Direction(keyCode);
 
-            // Load notes
-            boolean jumps = Tools.getBooleanSetting(R.string.jumps, R.string.jumpsDefault);
-            boolean holds = Tools.getBooleanSetting(R.string.holds, R.string.holdsDefault);
-            boolean randomize = Integer.parseInt(Tools.getSetting(R.string.randomize, R.string.randomizeDefault)) != Randomizer.OFF;
-            dp.loadNotes(jumps, holds, randomize);
-
-            // Sanity checks
-            if (!dp.hasNext()) {
-                throw new Exception(Tools.getString(R.string.MenuStartGame_notes_error));
-            }
-            String musicFilePath = dp.df.getMusic().getPath();
-            if (dp.df.getMusic() == null ||
-                    dp.df.getMusic().getPath().length() == 0 ||
-                    !dp.df.getMusic().exists() ||
-                    !dp.df.getMusic().canRead()
-            ) {
-                throw new Exception(Tools.getString(R.string.MenuStartGame_music_error));
-            }
-            // Ensure it's a valid/supported song format
-            try {
-                new MusicService(musicFilePath);
-            } catch (Exception e) {
-                throw new Exception(Tools.getString(R.string.MenuStartGame_music_error));
-            }
-            handler.sendEmptyMessage(0); // Done parsing
-        } catch (Exception e) {
-            ToolsTracker.error("MenuStartGame.run", e, smFilePath);
-            errorMessage = e.getMessage();
-            handler.sendEmptyMessage(-1); // Fail
-        }
-    }
-
-    // Start Game Checks
-    private void startGame() {
-        // Set the screen dimensions
-        // Have to be called outside of an onCreate for some reason...
-        Tools.setTopbarHeight(activity);
-        Tools.setScreenDimensions();
-        // Run thread
-        showLoadingDialog();
-        new Thread(this).start();
-    }
-
-    public void startGameCheck() {
-        smFilePath = Tools.getSetting(R.string.smFilePath, R.string.smFilePathDefault);
-
-        if (smFilePath.length() < 2) {
-            Tools.warning(Tools.getString(R.string.MenuStartGame_select_music), Tools.cancel_action, -1);
-        } else if (!(new File(smFilePath).exists())) {
-            Tools.error(Tools.getString(R.string.MenuStartGame_missing_sm) + smFilePath + Tools.getString(R.string.MenuStartGame_choose_new), Tools.cancel_action);
-        } else {
-            startGame();
-        }
-    }
-
+		if (autoPlay || h.done || h.score.gameOver)
+			return super.onKeyUp(keyCode, event);
+		
+		if (keyCode == KeyEvent.KEYCODE_SEARCH)
+			return true; // Search function is annoying ><
+		
+		if (pitch == -1)	
+			return super.onKeyUp(keyCode, event);
+		else
+			return h.onTouch_Up(1 << pitch);
+	}
 }
