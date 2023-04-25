@@ -37,7 +37,7 @@
             android:summary="@string/tapboxLayoutDesc"
             android:title="@string/tapboxLayoutTitle" />
         <Preference
-            android:fragment="com.github.budsterblue.revolutap.ui.MenuSettings$MenuSettingsFragmentModifiers"
+            android:fragment="com.frogobox.rythmtap.ui.settings.SettingsActivity$MenuSettingsFragmentModifiers"
             android:summary="@string/modifiersScreenDesc"
             android:title="@string/modifiersScreenTitle" />
     </PreferenceCategory>
@@ -50,7 +50,7 @@
             android:summary="@string/hardwareAccelerationDesc"
             android:title="@string/hardwareAccelerationTitle" />
         <Preference
-            android:fragment="com.github.budsterblue.revolutap.ui.MenuSettings$MenuSettingsFragmentGame"
+            android:fragment="com.frogobox.rythmtap.ui.settings.SettingsActivity$MenuSettingsFragmentGame"
             android:summary="@string/gameScreenDesc"
             android:title="@string/gameScreenTitle" />
         <ListPreference
@@ -84,7 +84,7 @@
             android:summary="@string/tapboxYOffsetDesc"
             android:title="@string/tapboxYOffsetTitle" />
         <Preference
-            android:fragment="com.github.budsterblue.revolutap.ui.MenuSettings$MenuSettingsFragmentVibrate"
+            android:fragment="com.frogobox.rythmtap.ui.settings.SettingsActivity$MenuSettingsFragmentVibrate"
             android:summary="@string/vibrateScreenDesc"
             android:title="@string/vibrateScreenTitle" />
     </PreferenceCategory>
@@ -127,11 +127,11 @@
                 android:data="@string/Url_downloads" />
         </Preference>
         <Preference
-            android:fragment="com.github.budsterblue.revolutap.ui.MenuSettings$MenuSettingsFragmentInfo"
+            android:fragment="com.frogobox.rythmtap.ui.settings.SettingsActivity$MenuSettingsFragmentInfo"
             android:summary="@string/infoScreenDesc"
             android:title="@string/infoScreenTitle" />
         <Preference
-            android:fragment="com.github.budsterblue.revolutap.ui.MenuSettings$MenuSettingsFragmentAdvanced"
+            android:fragment="com.frogobox.rythmtap.ui.settings.SettingsActivity$MenuSettingsFragmentAdvanced"
             android:summary="@string/advancedScreenDesc"
             android:title="@string/advancedScreenTitle" />
         <ListPreference
