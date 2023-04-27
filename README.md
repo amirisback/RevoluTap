@@ -1,4 +1,61 @@
-# RevoluTap
+## Dance Dance Revolution Clone for Android
+- Simple Game
+- Like On Time Zone
+- Clone From Dance Dance Revolution
+- Create with java and kotlin
+
+## Screen Shot
+
+<table>
+
+<tr>
+    <th>SS 1</th>
+    <th>SS 2</th>
+    <th>SS 3</th>
+</tr>
+
+<tr>
+    <td><img width="200px" height="420px" src="https://amirisback.github.io/dance-dance-revolution-clone-android/docs/image/ss_1.jpeg"></td>
+    <td><img width="200px" height="420px" src="https://amirisback.github.io/dance-dance-revolution-clone-android/docs/image/ss_2.jpeg"></td>
+    <td><img width="200px" height="420px" src="https://amirisback.github.io/dance-dance-revolution-clone-android/docs/image/ss_3.jpeg"></td>
+</tr>
+
+</table>
+
+## Version Release
+This Is Latest Release
+
+    $version_release = 1.0.0
+
+What's New??
+
+    * Initial Release *
+
+
+## Colaborator
+Very open to anyone, I'll write your name under this, please contribute by sending an email to me
+
+- Mail To faisalamircs@gmail.com
+- Subject : Github _ [Github-Username-Account] _ [Language] _ [Repository-Name]
+- Example : Github_amirisback_kotlin_admob-helper-implementation
+
+Name Of Contribute
+- Keripo
+- Budsterblue
+- Muhammad Faisal Amir
+- Waiting List
+- Waiting List
+
+Waiting for your contribute
+
+## Insipiration
+- Nested-RecyclerView ( [Jeffrey Liu](https://github.com/jeffreyliu8) - [Project](https://github.com/jeffreyliu8/Nested-RecyclerView) )
+
+## Attention !!!
+- Please enjoy and don't forget fork and give a star
+- Don't Forget Follow My Github Account
+
+## About Forker
 
 A fork of Beats, a rhythm game with StepMania simfile compatibility.
 
@@ -28,3 +85,5 @@ See http://beatsportable.com for more info
 All source code is available under Modified BSD license.
 
 ~Keripo
+
+![App Screenshots](https://amirisback.github.io/frogo-recycler-view/docs/image/mad_score.png?raw=true)
